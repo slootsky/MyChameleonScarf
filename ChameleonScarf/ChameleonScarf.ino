@@ -17,7 +17,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, 6, NEO_GRB + NEO_KHZ800);
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_1X);
 
 byte gammatable[256];
-float intensity = 0.3;
+// float intensity = 1;
+float base = 65535;
 
 void setup(void) {
   Serial.begin(9600);
@@ -55,16 +56,22 @@ void loop(void) {
   lux = tcs.calculateLux(red, green, blue);
   
   float r, g, b;
-  
+
+/* works pretty well   
   r = red / (float)clear;
   g = green / (float)clear;
   b = blue / (float)clear;
+  */
+
+  r = red / base;
+  g = green / base;
+  b = blue / base;
   /*
   r = lux / (float)red;
   g = lux / (float)green;
   b = lux / (float)blue;
   */
-  r *= 256; g *= 256; b *= 256;
+  r *= 255; g *= 255; b *= 255;
   
   Serial.print("R: "); 
   serialPrintNumber(red,5);
@@ -119,7 +126,10 @@ void loop(void) {
   Serial.println(" ");
   */
 //  colorWipe(strip.Color(gammatable[(int)r], gammatable[(int)g], gammatable[(int)b]), 0);
-  colorFill( (int)(gammatable[int(r)]*intensity), (int)(gammatable[int(g)]*intensity), (int)(gammatable[int(b)]*intensity) );
+  colorFill( (int)(gammatable[int(r)]*intensity)
+          , (int)(gammatable[int(g)]*intensity)
+          , (int)(gammatable[int(b)]*intensity) 
+          );
 
 }
 

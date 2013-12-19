@@ -1,38 +1,37 @@
 #include <Wire.h>
-#include "Adafruit_TCS34725.h"
+#include <Adafruit_TCS34725.h>
 #include <Adafruit_NeoPixel.h>
+/* Example code for the Adafruit TCS34725 breakout library */
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_RGB     Pixels are wired for RGB bitstream
-//   NEO_GRB     Pixels are wired for GRB bitstream
-//   NEO_KHZ400  400 KHz bitstream (e.g. FLORA pixels)
-//   NEO_KHZ800  800 KHz bitstream (e.g. High Density LED strip)
+/* Connect SCL    to analog 5
+   Connect SDA    to analog 4
+   Connect VDD    to 3.3V DC
+   Connect GROUND to common ground */
+   
+/* Initialise with default values (int time = 2.4ms, gain = 1x) */
+// Adafruit_TCS34725 tcs = Adafruit_TCS34725();
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, 6, NEO_GRB + NEO_KHZ800);
 
+/* Initialise with specific int time and gain values */
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_1X);
 
-// our RGB -> eye-recognized gamma color
 byte gammatable[256];
+float intensity = 0.3;
 
-
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-
-void setup() {
+void setup(void) {
   Serial.begin(9600);
-  Serial.println("Color View Test!");
-  
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
   
   if (tcs.begin()) {
     Serial.println("Found sensor");
   } else {
     Serial.println("No TCS34725 found ... check your connections");
-    while (1); // halt!
+    while (1);
   }
+
+  strip.begin();
+  strip.show(); // Initialize all pixels to 'off'
   
-  // thanks PhilB for this gamma table!
   // it helps convert RGB colors to what humans see
   for (int i=0; i<256; i++) {
     float x = i;
@@ -44,60 +43,126 @@ void setup() {
     //Serial.println(gammatable[i]);
   }
   
-  for (int i=0; i<3; i++){ //this sequence flashes the first pixel three times as a countdown to the color reading.
-    strip.setPixelColor (0, strip.Color(188, 188, 188)); //white, but dimmer-- 255 for all three values makes it blinding!
-    strip.show();
-    delay(1000);
-    strip.setPixelColor (0, strip.Color(0, 0, 0));
-    strip.show();
-    delay(500);
-  }
   
-  uint16_t clear, red, green, blue;
+  // Now we're ready to get readings!
+}
 
-  tcs.setInterrupt(false);      // turn on LED
-
-  delay(60);  // takes 50ms to read 
+void loop(void) {
+  uint16_t red, green, blue, clear, colorTemp, lux;
   
   tcs.getRawData(&red, &green, &blue, &clear);
-
-  tcs.setInterrupt(true);  // turn off LED
+  colorTemp = tcs.calculateColorTemperature(red, green, blue);
+  lux = tcs.calculateLux(red, green, blue);
   
-  Serial.print("C:\t"); Serial.print(clear);
-  Serial.print("\tR:\t"); Serial.print(red);
-  Serial.print("\tG:\t"); Serial.print(green);
-  Serial.print("\tB:\t"); Serial.print(blue);
-
-  // Figure out some basic hex code for visualization
-  uint32_t sum = red;
-  sum += green;
-  sum += blue;
-  sum += clear;
   float r, g, b;
-  r = red; r /= sum;
-  g = green; g /= sum;
-  b = blue; b /= sum;
+  
+  r = red / (float)clear;
+  g = green / (float)clear;
+  b = blue / (float)clear;
+  /*
+  r = lux / (float)red;
+  g = lux / (float)green;
+  b = lux / (float)blue;
+  */
   r *= 256; g *= 256; b *= 256;
-  Serial.print("\t");
-  Serial.print((int)r, HEX); Serial.print((int)g, HEX); Serial.print((int)b, HEX);
-  Serial.println();
+  
+  Serial.print("R: "); 
+  serialPrintNumber(red,5);
+  
+  Serial.print("\tG: "); 
+  serialPrintNumber(green,5);
+  Serial.print(" ");
+  
+  Serial.print("\tB: "); 
+  serialPrintNumber(blue,5);
+  Serial.print(" ");
+  Serial.print("\tC: "); 
+  serialPrintNumber(clear,5);
+  Serial.print(" ");
+  Serial.print("\tColor Temp: "); 
+  serialPrintNumber(colorTemp,5);
+  Serial.print(" K - ");
+  Serial.print("\tLux: "); 
+  serialPrintNumber(lux,5);
+  Serial.print(" - ");
+  Serial.println(" ");
 
-  Serial.print((int)r ); Serial.print(" "); Serial.print((int)g);Serial.print(" ");  Serial.println((int)b );
-  colorWipe(strip.Color(gammatable[(int)r], gammatable[(int)g], gammatable[(int)b]), 0);
+  Serial.print("R: "); 
+  serialPrintNumber(int(r),5);
+  Serial.print(" ");
+  Serial.print("\tG: "); 
+  serialPrintNumber(int(g),5);
+  Serial.print(" ");
+  Serial.print("\tB: "); 
+  serialPrintNumber(int(b),5);
+  Serial.print(" ");
+  Serial.println(" ");
+
+  
+/*  r = red / (float)clear;
+  g = green / (float)clear;
+  b = blue / (float)clear;
+  */
+/*  float max=red;
+  if ( blue > max )
+    max = blue;
+  if ( green > max )
+    max = green;
+      
+  r = (red/max)*255;
+  g = (green/max)*255;
+  b = (blue/max)*255;
+  Serial.print("R: "); Serial.print(int(r), DEC); Serial.print(" ");
+  Serial.print("G: "); Serial.print(int(g), DEC); Serial.print(" ");
+  Serial.print("B: "); Serial.print(int(b), DEC); Serial.print(" ");
+//  Serial.print("Ratio: "); Serial.print(ratio, DEC); Serial.print(" ");
+  Serial.println(" ");
+  */
+//  colorWipe(strip.Color(gammatable[(int)r], gammatable[(int)g], gammatable[(int)b]), 0);
+  colorFill( (int)(gammatable[int(r)]*intensity), (int)(gammatable[int(g)]*intensity), (int)(gammatable[int(b)]*intensity) );
+
+}
+
+
+// Fill the dots one after the other with a color
+void colorFill( uint8_t r, uint8_t g, uint8_t b )  
+{
+  uint32_t c=strip.Color(r,g,b);
+  
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, c);
+  }
+  strip.show();
 }
 
 // Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
+void colorFade(uint8_t r, uint8_t g,uint8_t b, uint8_t wait) 
+{
+  uint32_t c;
+  
+  for(uint16_t i=1; i<(strip.numPixels()+1); i++) {
+    c=strip.Color
+      ( (int)( (r*i)/( strip.numPixels() ) )
+      , (int)( (g*i)/( strip.numPixels() ) )
+      , (int)( (b*i)/( strip.numPixels() ) )
+      );
       strip.setPixelColor(i, c);
-      strip.show();
-      delay(wait);
+      if ( wait > 0 ) {
+        strip.show();
+        delay(wait);
+      }
+  }
+  if ( wait == 0 ) {
+    strip.show();
   }
 }
 
-void loop() {
-  
-  //loop is empty because it only takes the color reading once on power up! Turn the scarf off and on again to change the color.
-    
+void serialPrintNumber(uint16_t number, int width)
+{
+  int i;
+  for ( i = width ; i > log10(number) ; i-- )
+    Serial.print(" ");
+  Serial.print(number, DEC); 
 }
+
 

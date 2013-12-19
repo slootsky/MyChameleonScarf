@@ -72,7 +72,7 @@ void setup() {
   uint32_t sum = red;
   sum += green;
   sum += blue;
-  sum = clear;
+  sum += clear;
   float r, g, b;
   r = red; r /= sum;
   g = green; g /= sum;

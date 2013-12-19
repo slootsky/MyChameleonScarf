@@ -2,6 +2,8 @@
 #include <Adafruit_TCS34725.h>
 #include <Adafruit_NeoPixel.h>
 
+#define SERIAL_DEBUG true  // comment out this line to turn off serial debugging
+
 #define PIXEL_PIN  6
 #define NUMBER_OF_LEDS  8
 #define NUMBER_OF_SAMPLES 10
@@ -24,27 +26,37 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMBER_OF_LEDS, PIXEL_PIN, NEO_GRB +
 
 byte gammatable[256];
 float base = 65535;
-float red, green, blue, clear;
+float red, green, blue; //, clear; // intentionally ignoring the clear reading, I think it's a red herring
 
 void setup(void) {
   uint32_t startupColours[3];
   uint16_t redReading, greenReading, blueReading, clearReading;
   float r, g, b;
 
+
+#ifdef SERIAL_DEBUG    
   Serial.begin(9600);
-  
-  if (tcs.begin()) {
-    Serial.println("Found sensor");
-    tcs.setInterrupt(true);      // turn off LED
-  } else {
-    Serial.println("No TCS34725 found ... check your connections");
-    while (1);
-  }
+#endif
 
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   
-  
+
+  if (tcs.begin()) {
+#ifdef SERIAL_DEBUG    
+    Serial.println("Found sensor");
+#endif   
+    tcs.setInterrupt(true);      // turn off LED
+  } else {
+#ifdef SERIAL_DEBUG    
+    Serial.println("No TCS34725 found ... check your connections");
+#endif
+    // a loop here blinking all the pixels red would be more helpful
+    while (1);
+  }
+
+
+  // populate the gamma table  
   // it helps convert RGB colors to what humans see
   for (int i=0; i<256; i++) {
     float x = i;
@@ -56,6 +68,7 @@ void setup(void) {
     //Serial.println(gammatable[i]);
   }
   
+  // we use these colours to generate our traffic light sequence
    startupColours[0] = strip.Color(188, 188, 188);  // DIM WHITE
    startupColours[1] = strip.Color(188, 0, 0);  // RED
   startupColours[2] = strip.Color(188, 188, 0);  // YELLOW
@@ -73,6 +86,7 @@ void setup(void) {
     tcs.setInterrupt(true);      // turn off LED
     delay(500);
   }
+    // green means GO!
     strip.setPixelColor (0, startupColours[3]);
  
   // Now we're ready to get readings!
@@ -80,13 +94,15 @@ void setup(void) {
   {
     /* This would be better as an actual average
       , not this fake rolling average
+        but I didn't want to bother figuring out the correct datatype
+        and this scales better (more samples will still work)
       */
     tcs.setInterrupt(false);      // turn on LED
-    if ( reading == 0 ) 
+    if ( reading == 0 ) // is this the first reading?
     {
       tcs.getRawData(&redReading, &greenReading, &blueReading, &clearReading);
-      tcs.setInterrupt(true);      // turn off LED
-
+  
+      // intentionally ignoring the clearReading.  I think it's a red herring
       red = redReading ;
       green = greenReading ;
       blue = blueReading;
@@ -94,31 +110,31 @@ void setup(void) {
     else
     {
       tcs.getRawData(&redReading, &greenReading, &blueReading, &clearReading);
-      tcs.setInterrupt(true);      // turn off LED
 
+      // intentionally ignoring the clearReading.  I think it's a red herring
       red = ( red + redReading ) / 2;
       green = ( green + greenReading ) / 2;
       blue = ( blue + blueReading ) / 2;
-      clear = ( clear + clearReading ) / 2;
     }
+    tcs.setInterrupt(true);      // turn off LED
+    
     r = red / base;
     g = green / base;
     b = blue / base;
     r *= 255; g *= 255; b *= 255;
 
+  // set the colour from the far end
   strip.setPixelColor( NUMBER_OF_LEDS - ( NUMBER_OF_LEDS * ( reading / NUMBER_OF_SAMPLES ) )
           , strip.Color( (int)(gammatable[int(r)])
-          , (int)(gammatable[int(g)])
-          , (int)(gammatable[int(b)]) 
-          )
+            , (int)(gammatable[int(g)])
+            , (int)(gammatable[int(b)]) 
+            )
           );
     strip.show();
     
     }
 
-//  }
-
-
+#ifdef SERIAL_DEBUG
   Serial.print("R: "); 
   serialPrintNumber(red,5);
   Serial.print(" ");
@@ -131,18 +147,6 @@ void setup(void) {
   serialPrintNumber(blue,5);
   Serial.print(" ");
 
-  Serial.print("\tC: "); 
-  serialPrintNumber(clear,5);
-  Serial.print(" ");
-
-/*  Serial.print("\tColor Temp: "); 
-  serialPrintNumber(colorTemp,5);
-  Serial.print(" K - ");
-
-  Serial.print("\tLux: "); 
-  serialPrintNumber(lux,5);
-  Serial.print(" - ");
-*/
   Serial.println(" ");
 
   Serial.print("R: "); 
@@ -158,6 +162,8 @@ void setup(void) {
   Serial.print(" ");
 
   Serial.println(" ");
+
+#endif
 
   colorFill( (int)(gammatable[int(r)])
           , (int)(gammatable[int(g)])
@@ -181,6 +187,7 @@ void colorFill( uint8_t r, uint8_t g, uint8_t b )
   strip.show();
 }
 
+#ifdef SERIAL_DEBUG
 void serialPrintNumber(uint16_t number, int width)
 {
   int i;
@@ -188,5 +195,4 @@ void serialPrintNumber(uint16_t number, int width)
     Serial.print(" ");
   Serial.print(number, DEC); 
 }
-
-
+#endif

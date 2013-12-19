@@ -1,6 +1,8 @@
 #include <Wire.h>
 #include <Adafruit_TCS34725.h>
 #include <Adafruit_NeoPixel.h>
+
+#define NUMBER_OF_SAMPLES 10
 /* Example code for the Adafruit TCS34725 breakout library */
 
 /* Connect SCL    to analog 5
@@ -17,7 +19,6 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, 6, NEO_GRB + NEO_KHZ800);
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_1X);
 
 byte gammatable[256];
-// float intensity = 1;
 float base = 65535;
 
 void setup(void) {
@@ -49,13 +50,15 @@ void setup(void) {
 }
 
 void loop(void) {
-  uint16_t red, green, blue, clear, colorTemp, lux;
+  uint16_t red, green, blue, clear;
+//  uint16_t colorTemp, lux;
   
-  tcs.getRawData(&red, &green, &blue, &clear);
-  colorTemp = tcs.calculateColorTemperature(red, green, blue);
-  lux = tcs.calculateLux(red, green, blue);
+//  colorTemp = tcs.calculateColorTemperature(red, green, blue);
+//  lux = tcs.calculateLux(red, green, blue);
   
   float r, g, b;
+
+  tcs.getRawData(&red, &green, &blue, &clear);
 
 /* works pretty well   
   r = red / (float)clear;
@@ -126,9 +129,9 @@ void loop(void) {
   Serial.println(" ");
   */
 //  colorWipe(strip.Color(gammatable[(int)r], gammatable[(int)g], gammatable[(int)b]), 0);
-  colorFill( (int)(gammatable[int(r)]*intensity)
-          , (int)(gammatable[int(g)]*intensity)
-          , (int)(gammatable[int(b)]*intensity) 
+  colorFill( (int)(gammatable[int(r)])
+          , (int)(gammatable[int(g)])
+          , (int)(gammatable[int(b)]) 
           );
 
 }
